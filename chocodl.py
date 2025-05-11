@@ -49,11 +49,11 @@ def download_file(pkg, options):
     if pkg_url and pkg_dir and pkg_sha512:
         dl = pypdl.Pypdl(allow_reuse=False)
 
-        dl_result = dl.start(   url = pkg_url,
-                                file_path = pkg_dir,
-                                block=True,
-                                clear_terminal=False,
-                                display=False
+        dl_result = dl.start( url = pkg_url,
+                              file_path = pkg_dir,
+                              block=True,
+                              clear_terminal=False,
+                              display=False
                             )
         
         if dl.completed:
@@ -70,7 +70,6 @@ def download_file(pkg, options):
     return download_went_well
 
 def download_files(pkgs_list, options):
-    
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futs = [ (pkg[0], executor.submit(functools.partial(download_file, pkg, options)))
             for pkg in pkgs_list.items() ]
