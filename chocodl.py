@@ -60,7 +60,7 @@ def download_file(pkg, options):
             for res_url, res_fut in dl_result:
                 if isinstance(res_fut, pypdl.utils.FileValidator):
                     dl_hash = res_fut.calculate_hash('sha512')
-                    dl_hash_digest = bytes.fromhex(res_fut.calculate_hash('sha512'))
+                    dl_hash_digest = bytes.fromhex(dl_hash)
                     expected_hash_digest = bytes.fromhex(pkg_sha512)
                     if not(secrets.compare_digest(dl_hash_digest, expected_hash_digest)):
                         print("[!] SHA512 hash mistmatch for the package '%s'\n URL:\t\t'%s'\n Expected:\t'%s'\n Got:\t\t'%s'" % (pkgname, res_url, dl_hash, pkg_sha512))
