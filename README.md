@@ -3,7 +3,7 @@ Chocodl
 
 Description
 -----------
-A little script to easily download packages from Chocolatey
+A little Python script to easily download packages from Chocolatey
 
 Copyright and license
 ---------------------
