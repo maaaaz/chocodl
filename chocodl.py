@@ -22,7 +22,7 @@ CHOCO_SEARCH_REQ = 'https://community.chocolatey.org/api/v2/Packages()?$filter=(
 
 # Options definition
 parser = argparse.ArgumentParser(description="version: " + VERSION)
-parser.add_argument('-i', '--input-file', help="Input file")
+parser.add_argument('-i', '--input-file', help="Input file", required = True)
 parser.add_argument('-s', '--do-not-download', help="Do not download anything, simply print download URLs", default = False, action='store_true')
 parser.add_argument('-d', '--output-dir', help='Output dir (default ./chocodl/)', default=os.path.abspath(os.path.join(os.getcwd(), './chocodl/')))
 
