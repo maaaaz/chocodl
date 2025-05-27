@@ -143,9 +143,9 @@ def search(options, pkgs_list):
         futs = [ (pkgname, executor.submit(functools.partial(extract, pkgname)))
             for pkgname, pkg in pkgs_list.items() ]
 
-    for pkgname, pkg_extract in futs:
-        if pkgname in pkgs_list.keys():
-            pkgs_list[pkgname] = {**pkgs_list[pkgname], **pkg_extract.result()}
+        for pkgname, pkg_extract in futs:
+            if pkgname in pkgs_list.keys():
+                pkgs_list[pkgname] = {**pkgs_list[pkgname], **pkg_extract.result()}
 
     return None
 
