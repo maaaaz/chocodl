@@ -15,6 +15,7 @@ import pprint
 
 from lxml.etree import fromstring as fromstringxml
 import pypdl
+import aiohttp
 
 # Globals
 VERSION = '1.0'
@@ -22,9 +23,29 @@ CHOCO_SEARCH_REQ = 'https://community.chocolatey.org/api/v2/Packages()?$filter=(
 
 # Options definition
 parser = argparse.ArgumentParser(description="version: " + VERSION)
-parser.add_argument('-i', '--input-file', help="Input file", required = True)
-parser.add_argument('-s', '--do-not-download', help="Do not download anything, simply print download URLs", default = False, action='store_true')
-parser.add_argument('-d', '--output-dir', help='Output dir (default ./chocodl/)', default=os.path.abspath(os.path.join(os.getcwd(), './chocodl/')))
+main_grp = parser.add_argument_group('Main parameters')
+main_grp.add_argument('-i', '--input-file', help="Input file", required = True)
+main_grp.add_argument('-s', '--do-not-download', help="Do not download anything, simply print download URLs", default = False, action='store_true')
+main_grp.add_argument('-d', '--output-dir', help='Output dir (default ./chocodl/)', default=os.path.abspath(os.path.join(os.getcwd(), './chocodl/')))
+
+dl_grp = parser.add_argument_group('Download parameters')
+dl_grp.add_argument('-t', '--timeout', help='Max timeout in seconds to download a file (default: 20)', default=20, type=int)
+
+def get_dl_url(pkg, priority='x64'):
+    pkg_url = ''
+    pkg_sha512 = ''
+    
+    if 'dl' in pkg.keys():
+        # by default, priority to x64 version
+        if ('x64' in pkg['dl']) and (priority == 'x64'):
+                pkg_url = pkg['dl']['x64']['dl_url']
+                pkg_sha512 = pkg['dl']['x64']['sha512']
+        else:
+            if ('x86' in pkg['dl']):
+                pkg_url = pkg['dl']['x86']['dl_url']
+                pkg_sha512 = pkg['dl']['x86']['sha512']
+    
+    return pkg_url, pkg_sha512
 
 def download_file(pkg, options):
     download_went_well = True
@@ -36,16 +57,7 @@ def download_file(pkg, options):
     if not os.path.exists(pkg_dir):
         Path(pkg_dir).mkdir(parents=True, exist_ok=True)
     
-    if 'dl' in pkg.keys():
-            # priority to x64 version
-            if ('x64' in pkg['dl']) and ('x86' in pkg['dl']):
-                pkg_url = pkg['dl']['x64']['dl_url']
-                pkg_sha512 = pkg['dl']['x64']['sha512']
-            
-            elif ('x64' not in pkg['dl']) and ('x86' in pkg['dl']):
-                pkg_url = pkg['dl']['x86']['dl_url']
-                pkg_sha512 = pkg['dl']['x86']['sha512']
-    
+    pkg_url, pkg_sha512 = get_dl_url(pkg)
     if pkg_url and pkg_dir and pkg_sha512:
         dl = pypdl.Pypdl(allow_reuse=False)
 
@@ -53,7 +65,8 @@ def download_file(pkg, options):
                               file_path = pkg_dir,
                               block=True,
                               clear_terminal=False,
-                              display=False
+                              display=False,
+                              timeout=aiohttp.ClientTimeout(sock_read=options.timeout)
                             )
         
         if dl.completed:
@@ -63,7 +76,7 @@ def download_file(pkg, options):
                     dl_hash_digest = bytes.fromhex(dl_hash)
                     expected_hash_digest = bytes.fromhex(pkg_sha512)
                     if not(secrets.compare_digest(dl_hash_digest, expected_hash_digest)):
-                        print("[!] SHA512 hash mistmatch for the package '%s'\n URL:\t\t'%s'\n Expected:\t'%s'\n Got:\t\t'%s'" % (pkgname, res_url, dl_hash, pkg_sha512))
+                        print("[!] SHA512 hash mistmatch for the package '%s'\n URL:\t\t'%s'\n Expected:\t'%s'\n Got:\t\t'%s'" % (pkgname, res_url, pkg_sha512, dl_hash))
                         print('-'*80)
                         download_went_well = False
 
@@ -79,13 +92,8 @@ def download_files(pkgs_list, options):
 
 def list_dl_links(pkgs_list):
     for pkgname, pkg in pkgs_list.items():
-        if 'dl' in pkg.keys():
-            # force printing of x64 if available
-            if ('x64' in pkg['dl']) and ('x86' in pkg['dl']):
-                print(pkg['dl']['x64']['dl_url'])
-            
-            elif ('x64' not in pkg['dl']) and ('x86' in pkg['dl']):
-                print(pkg['dl']['x86']['dl_url'])
+        pkg_url, pkg_sha512 = get_dl_url(pkg)
+        print(pkg_url)
     return None
 
 def extract(pkgname):
@@ -107,7 +115,7 @@ def extract(pkgname):
         print("[!] Package '%s' is not found" % pkgname)
     
     if title and not(links):
-        print("[!] Package '%s' (titled '%s') does not have any download link" % (pkgname, title))
+        print("[!] Package '%s' (entitled '%s') does not have any download link" % (pkgname, title))
     
     if title and version and links:
         elem['name'] = title
@@ -119,8 +127,8 @@ def extract(pkgname):
             sha512 = sha512.lower()
 
             dl_elem[arch] = { 'dl_url': dl_url,
-                            'file_name': file_name,
-                            'sha512': sha512 }
+                              'file_name': file_name,
+                              'sha512': sha512 }
         
         elem['dl'] = dl_elem
 
