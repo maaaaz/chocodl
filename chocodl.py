@@ -34,7 +34,7 @@ dl_grp.add_argument('-t', '--timeout', help='Max timeout in seconds to download 
 def get_dl_url(pkg, priority='x64'):
     pkg_url = ''
     pkg_sha512 = ''
-    
+
     if 'dl' in pkg.keys():
         # by default, priority to x64 version
         if ('x64' in pkg['dl']) and (priority == 'x64'):
@@ -44,7 +44,7 @@ def get_dl_url(pkg, priority='x64'):
             if ('x86' in pkg['dl']):
                 pkg_url = pkg['dl']['x86']['dl_url']
                 pkg_sha512 = pkg['dl']['x86']['sha512']
-    
+
     return pkg_url, pkg_sha512
 
 def download_file(pkg, options):
@@ -53,10 +53,10 @@ def download_file(pkg, options):
     pkg_dir = pkg['output_dir']
     pkg_url = ''
     pkg_sha512 = ''
-    
+
     if not os.path.exists(pkg_dir):
         Path(pkg_dir).mkdir(parents=True, exist_ok=True)
-    
+
     pkg_url, pkg_sha512 = get_dl_url(pkg)
     if pkg_url and pkg_dir and pkg_sha512:
         dl = pypdl.Pypdl(allow_reuse=False)
@@ -66,16 +66,15 @@ def download_file(pkg, options):
                               block=True,
                               clear_terminal=False,
                               display=False,
-                              timeout=aiohttp.ClientTimeout(sock_read=options.timeout)
+                              timeout=aiohttp.ClientTimeout(sock_read=options.timeout),
+                              hash_algorithms='sha512'
                             )
-        
+
         if dl.completed:
             for res_url, res_fut in dl_result:
                 if isinstance(res_fut, pypdl.utils.FileValidator):
-                    dl_hash = res_fut.calculate_hash('sha512')
-                    dl_hash_digest = bytes.fromhex(dl_hash)
-                    expected_hash_digest = bytes.fromhex(pkg_sha512)
-                    if not(secrets.compare_digest(dl_hash_digest, expected_hash_digest)):
+                    dl_hash = res_fut.get_hash('sha512')
+                    if not(res_fut.validate_hash(pkg_sha512, 'sha512')):
                         print("[!] SHA512 hash mistmatch for the package '%s'\n URL:\t\t'%s'\n Expected:\t'%s'\n Got:\t\t'%s'" % (pkgname, res_url, pkg_sha512, dl_hash))
                         print('-'*80)
                         download_went_well = False
@@ -106,17 +105,17 @@ def extract(pkgname):
     title = root.xpath("//*[name()='d:Title']/text()")
     version = root.xpath("//*[name()='d:Version']/text()")
     links = root.xpath("//*[name()='d:DownloadCache']/text()")
-    
+
     title = title[0] if len(title) == 1 else ''
     version = version[0] if len(version) == 1 else ''
     links = links[0].split('|') if len(links) == 1 else ''
 
     if not(title):
         print("[!] Package '%s' is not found" % pkgname)
-    
+
     if title and not(links):
         print("[!] Package '%s' (entitled '%s') does not have any download link" % (pkgname, title))
-    
+
     if title and version and links:
         elem['name'] = title
         dl_elem = {}
@@ -129,7 +128,7 @@ def extract(pkgname):
             dl_elem[arch] = { 'dl_url': dl_url,
                               'file_name': file_name,
                               'sha512': sha512 }
-        
+
         elem['dl'] = dl_elem
 
     return elem
@@ -141,10 +140,10 @@ def search(options, pkgs_list):
             if line:
                 pkgname  = line
                 output_dir = options.output_dir
-                
+
                 if ' | ' in line:
                     pkgname, output_dir = line.split(' | ')
-                
+
                 pkgs_list[pkgname] = {'output_dir': output_dir}
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -163,7 +162,7 @@ def main():
 
     pkgs_list = {}
     search(options, pkgs_list)
-    
+
     if options.do_not_download:
         print()
         list_dl_links(pkgs_list)
