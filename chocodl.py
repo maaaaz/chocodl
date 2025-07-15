@@ -64,7 +64,6 @@ def download_file(pkg, options):
         dl_result = dl.start( url = pkg_url,
                               file_path = pkg_dir,
                               block=True,
-                              clear_terminal=False,
                               display=False,
                               timeout=aiohttp.ClientTimeout(sock_read=options.timeout),
                               hash_algorithms='sha512'
