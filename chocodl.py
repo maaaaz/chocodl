@@ -136,7 +136,7 @@ def search(options, pkgs_list):
     with open(options.input_file, mode='r', encoding='utf-8') as fd_input:
         for line in fd_input:
             line = line.strip()
-            if line:
+            if line and not(line.startswith('#')):
                 pkgname  = line
                 output_dir = options.output_dir
 
